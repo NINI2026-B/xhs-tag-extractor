@@ -650,6 +650,7 @@ extractBtn.addEventListener('click', async () => {
         + '<span class="card-status ' + statusCls + '">' + statusLabel + '</span>'
         + '</div>'
         + '<div class="card-id">' + escapeHtml(r.shortId) + '</div>'
+        + (r.nickname ? '<div style="font-size:0.8rem;color:#94a3b8;margin-bottom:4px;">👤 ' + escapeHtml(r.nickname) + '</div>' : '')
         + (r.title ? '<div class="card-title">' + escapeHtml(r.title) + '</div>' : '')
         + errorHtml
         + tagHtml

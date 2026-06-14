@@ -158,7 +158,11 @@ def extract_tags_from_html(html):
     tag_list = note_data.get("tagList", [])
     tags = [t["name"] for t in tag_list if t.get("name")]
     title = note_data.get("title", "")
-    return title, tags, None
+
+    # 提取用户名
+    nickname = note_data.get("user", {}).get("nickname", "")
+
+    return title, tags, nickname
 
 
 def fetch_one(client, url, idx):
@@ -168,27 +172,27 @@ def fetch_one(client, url, idx):
         resp = client.get(url, headers={"User-Agent": UA})
 
         if resp.status_code != 200:
-            return {"index": idx, "url": url, "shortId": short_id, "status": "failed", "title": "", "tags": [], "error": f"HTTP {resp.status_code}"}
+            return {"index": idx, "url": url, "shortId": short_id, "status": "failed", "title": "", "tags": [], "nickname": "", "error": f"HTTP {resp.status_code}"}
 
         html = resp.text
 
         if "window.__INITIAL_STATE__=" not in html:
-            return {"index": idx, "url": url, "shortId": short_id, "status": "failed", "title": "", "tags": [], "error": "页面不含 SSR 数据（可能需要登录或已失效）"}
+            return {"index": idx, "url": url, "shortId": short_id, "status": "failed", "title": "", "tags": [], "nickname": "", "error": "页面不含 SSR 数据（可能需要登录或已失效）"}
 
-        title, tags, _ = extract_tags_from_html(html)
+        title, tags, nickname = extract_tags_from_html(html)
 
         if tags is None:
-            return {"index": idx, "url": url, "shortId": short_id, "status": "failed", "title": "", "tags": [], "error": "JSON 解析失败"}
+            return {"index": idx, "url": url, "shortId": short_id, "status": "failed", "title": "", "tags": [], "nickname": "", "error": "JSON 解析失败"}
 
         if not tags:
-            return {"index": idx, "url": url, "shortId": short_id, "status": "failed", "title": title or "", "tags": [], "error": "未找到话题标签"}
+            return {"index": idx, "url": url, "shortId": short_id, "status": "failed", "title": title or "", "tags": [], "nickname": nickname or "", "error": "未找到话题标签"}
 
-        return {"index": idx, "url": url, "shortId": short_id, "status": "success", "title": title, "tags": tags}
+        return {"index": idx, "url": url, "shortId": short_id, "status": "success", "title": title, "tags": tags, "nickname": nickname}
 
     except httpx.TimeoutException:
-        return {"index": idx, "url": url, "shortId": short_id, "status": "failed", "title": "", "tags": [], "error": "请求超时"}
+        return {"index": idx, "url": url, "shortId": short_id, "status": "failed", "title": "", "tags": [], "nickname": "", "error": "请求超时"}
     except Exception as e:
-        return {"index": idx, "url": url, "shortId": short_id, "status": "failed", "title": "", "tags": [], "error": str(e)[:100]}
+        return {"index": idx, "url": url, "shortId": short_id, "status": "failed", "title": "", "tags": [], "nickname": "", "error": str(e)[:100]}
 
 
 @app.route("/")
@@ -258,7 +262,7 @@ def export_excel():
     ws1 = wb.active
     ws1.title = "提取结果"
 
-    headers1 = ["序号", "链接ID", "状态", "标题", "话题标签", "错误信息"]
+    headers1 = ["序号", "链接ID", "状态", "用户名", "标题", "话题标签", "错误信息"]
     for col, h in enumerate(headers1, 1):
         cell = ws1.cell(row=1, column=col, value=h)
         cell.font = header_font
@@ -272,6 +276,7 @@ def export_excel():
             r["index"] + 1,
             r["shortId"],
             "成功" if r["status"] == "success" else "失败",
+            r.get("nickname", ""),
             r.get("title", ""),
             " ".join(["#" + t for t in r.get("tags", [])]),
             r.get("error", "") if r["status"] == "failed" else "",
@@ -285,9 +290,10 @@ def export_excel():
     ws1.column_dimensions["A"].width = 6
     ws1.column_dimensions["B"].width = 30
     ws1.column_dimensions["C"].width = 8
-    ws1.column_dimensions["D"].width = 40
-    ws1.column_dimensions["E"].width = 60
-    ws1.column_dimensions["F"].width = 25
+    ws1.column_dimensions["D"].width = 16
+    ws1.column_dimensions["E"].width = 36
+    ws1.column_dimensions["F"].width = 60
+    ws1.column_dimensions["G"].width = 25
 
     ws2 = wb.create_sheet("标签统计")
 

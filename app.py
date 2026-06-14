@@ -1,5 +1,6 @@
 import json
 import io
+import os
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from flask import Flask, render_template, request, jsonify, send_file
@@ -100,6 +101,11 @@ def fetch_one(client, url, idx):
 @app.route("/")
 def index():
     return render_template("index.html")
+
+
+@app.route("/ping")
+def ping():
+    return "pong"
 
 
 @app.route("/api/extract", methods=["POST"])
@@ -234,4 +240,5 @@ def export_excel():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=False)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=False)

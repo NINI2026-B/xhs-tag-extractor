@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>小红书话题标签提取工具</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg-primary: #0f172a;
+    --bg-secondary: #1e293b;
+    --bg-card: #1e293b;
+    --bg-input: #0f172a;
+    --border: #334155;
+    --border-hover: #475569;
+    --text-primary: #f1f5f9;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+    --accent: #FF2442;
+    --accent-hover: #e61e3a;
+    --accent-glow: rgba(255, 36, 66, 0.25);
+    --success: #10b981;
+    --success-bg: rgba(16, 185, 129, 0.1);
+    --error: #ef4444;
+    --error-bg: rgba(239, 68, 68, 0.1);
+    --tag-bg: rgba(255, 36, 66, 0.08);
+    --tag-border: rgba(255, 36, 66, 0.2);
+    --tag-text: #fda4af;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --radius-lg: 16px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    min-height: 100vh;
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -20%, rgba(255, 36, 66, 0.08), transparent),
+      radial-gradient(ellipse 50% 60% at 100% 100%, rgba(99, 102, 241, 0.05), transparent);
+  }
+
+  .container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  header {
+    text-align: center;
+    padding: 48px 0 32px;
+  }
+
+  header h1 {
+    font-size: 2.75rem;
+    font-weight: 900;
+    letter-spacing: -0.02em;
+    background: linear-gradient(135deg, #FF2442 0%, #ff6b81 50%, #ff8fa3 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 8px;
+  }
+
+  header p {
+    color: var(--text-secondary);
+    font-size: 1.05rem;
+    font-weight: 400;
+  }
+
+  .main-layout {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 24px;
+    padding-bottom: 48px;
+  }
+
+  .input-section {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    margin-bottom: 24px;
+  }
+
+  .input-section label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .input-section textarea {
+    width: 100%;
+    min-height: 160px;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    color: var(--text-primary);
+    font-family: 'JetBrains Mono', 'Noto Sans SC', monospace;
+    font-size: 0.85rem;
+    line-height: 1.6;
+    resize: vertical;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    outline: none;
+  }
+
+  .input-section textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+  }
+
+  .input-section textarea::placeholder {
+    color: var(--text-muted);
+  }
+
+  .input-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 12px;
+  }
+
+  .link-count {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
+
+  .link-count strong {
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 24px;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: white;
+    box-shadow: 0 4px 16px var(--accent-glow);
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    background: var(--accent-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 24px var(--accent-glow);
+  }
+
+  .btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+  }
+
+  .btn-ghost:hover {
+    color: var(--text-primary);
+    border-color: var(--border-hover);
+    background: rgba(255, 255, 255, 0.03);
+  }
+
+  .btn-sm {
+    padding: 6px 14px;
+    font-size: 0.8rem;
+  }
+
+  .btn-group {
+    display: flex;
+    gap: 10px;
+  }
+
+  .progress-bar {
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    margin-top: 16px;
+    overflow: hidden;
+    display: none;
+  }
+
+  .progress-bar.active { display: block; }
+
+  .progress-bar .fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), #ff6b81);
+    border-radius: 2px;
+    transition: width 0.3s ease;
+    width: 0%;
+  }
+
+  .progress-text {
+    text-align: center;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-top: 6px;
+    display: none;
+  }
+
+  .progress-text.active { display: block; }
+
+  .result-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+    margin-bottom: 10px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    animation: fadeInUp 0.3s ease both;
+  }
+
+  .result-card:hover {
+    border-color: var(--border-hover);
+  }
+
+  .result-card.success { border-left: 3px solid var(--success); }
+  .result-card.failed { border-left: 3px solid var(--error); opacity: 0.7; }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+
+  .card-index {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+
+  .card-status {
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 20px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .card-status.ok { background: var(--success-bg); color: var(--success); }
+  .card-status.fail { background: var(--error-bg); color: var(--error); }
+
+  .card-id {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+    word-break: break-all;
+  }
+
+  .card-title {
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: 10px;
+    line-height: 1.4;
+  }
+
+  .card-error {
+    font-size: 0.8rem;
+    color: var(--error);
+  }
+
+  .tag-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .tag-pill {
+    display: inline-block;
+    padding: 4px 12px;
+    background: var(--tag-bg);
+    border: 1px solid var(--tag-border);
+    border-radius: 20px;
+    font-size: 0.78rem;
+    color: var(--tag-text);
+    font-weight: 500;
+    white-space: nowrap;
+    transition: all 0.2s;
+  }
+
+  .tag-pill:hover {
+    background: rgba(255, 36, 66, 0.15);
+    border-color: var(--accent);
+    color: #fecdd3;
+  }
+
+  .stats-panel {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    position: sticky;
+    top: 24px;
+    max-height: calc(100vh - 48px);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .stats-panel h3 {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .stats-panel h3 .count {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-weight: 400;
+  }
+
+  .stats-list {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .stats-list::-webkit-scrollbar { width: 4px; }
+  .stats-list::-webkit-scrollbar-track { background: transparent; }
+  .stats-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .stat-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+    transition: background 0.15s;
+    cursor: default;
+  }
+
+  .stat-item:hover { background: rgba(255, 255, 255, 0.03); }
+
+  .stat-tag {
+    font-size: 0.82rem;
+    color: var(--tag-text);
+    font-weight: 500;
+  }
+
+  .stat-count {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+    background: rgba(255, 255, 255, 0.04);
+    padding: 2px 8px;
+    border-radius: 12px;
+  }
+
+  .stat-bar {
+    height: 2px;
+    background: var(--border);
+    border-radius: 1px;
+    margin-top: 4px;
+    overflow: hidden;
+  }
+
+  .stat-bar .fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 1px;
+    transition: width 0.5s ease;
+  }
+
+  .stats-actions {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-muted);
+  }
+
+  .empty-state svg {
+    width: 48px;
+    height: 48px;
+    margin-bottom: 16px;
+    opacity: 0.3;
+  }
+
+  .empty-state p {
+    font-size: 0.9rem;
+  }
+
+  .toast {
+    position: fixed;
+    bottom: 32px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    padding: 10px 24px;
+    border-radius: var(--radius);
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    z-index: 100;
+  }
+
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  .spinner {
+    width: 16px; height: 16px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    display: inline-block;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @media (max-width: 1024px) {
+    .main-layout {
+      grid-template-columns: 1fr;
+    }
+    .stats-panel {
+      position: static;
+      max-height: none;
+    }
+    header h1 { font-size: 2rem; }
+  }
+
+  @media (max-width: 640px) {
+    .container { padding: 0 16px; }
+    header { padding: 32px 0 24px; }
+    header h1 { font-size: 1.6rem; }
+    .input-actions { flex-direction: column; gap: 12px; align-items: stretch; }
+    .btn-group { justify-content: center; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>小红书话题标签提取</h1>
+    <p>粘贴链接，一键批量提取笔记话题标签</p>
+  </header>
+
+  <div class="main-layout">
+    <div class="left-col">
+      <div class="input-section">
+        <label>粘贴小红书链接（每行一条，支持短链接和完整链接）</label>
+        <textarea id="urlInput" placeholder="http://xhslink.com/o/58muCUk2Yq6&#10;http://xhslink.com/o/7WTR7d8BYRy&#10;https://www.xiaohongshu.com/explore/xxx..."></textarea>
+        <div class="progress-bar" id="progressBar"><div class="fill" id="progressFill"></div></div>
+        <div class="progress-text" id="progressText"></div>
+        <div class="input-actions">
+          <div class="link-count" id="linkCount">已识别 <strong>0</strong> 条链接</div>
+          <div class="btn-group">
+            <button class="btn btn-ghost btn-sm" id="clearBtn">清空</button>
+            <button class="btn btn-primary" id="extractBtn">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+              开始提取
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div id="resultsContainer"></div>
+      <div class="empty-state" id="emptyState">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+        <p>粘贴链接后点击"开始提取"查看结果</p>
+      </div>
+    </div>
+
+    <div class="right-col">
+      <div class="stats-panel" id="statsPanel">
+        <h3>标签统计 <span class="count" id="statsCount">0 个标签</span></h3>
+        <div class="stats-list" id="statsList">
+          <div style="text-align:center;color:var(--text-muted);padding:32px 0;font-size:0.85rem;">
+            暂无数据
+          </div>
+        </div>
+        <div class="stats-actions" id="statsActions" style="display:none;">
+          <button class="btn btn-ghost btn-sm" id="copyAllTags" style="width:100%;justify-content:center;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            复制全部标签
+          </button>
+          <button class="btn btn-primary btn-sm" id="exportBtn" style="width:100%;justify-content:center;margin-top:8px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            导出 Excel
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const urlInput = $('#urlInput');
+const linkCount = $('#linkCount');
+const extractBtn = $('#extractBtn');
+const clearBtn = $('#clearBtn');
+const progressBar = $('#progressBar');
+const progressFill = $('#progressFill');
+const progressText = $('#progressText');
+const resultsContainer = $('#resultsContainer');
+const emptyState = $('#emptyState');
+const statsList = $('#statsList');
+const statsCount = $('#statsCount');
+const statsActions = $('#statsActions');
+const copyAllBtn = $('#copyAllTags');
+const exportBtn = $('#exportBtn');
+const toast = $('#toast');
+
+let allTags = [];
+let lastResults = [];
+let lastStats = [];
+
+function parseUrls() {
+  const text = urlInput.value.trim();
+  if (!text) return [];
+  const lines = text.split(/[\n,;]+/);
+  return [...new Set(
+    lines
+      .map(l => l.trim().replace(/^["'`]+|["'`]+$/g, ''))
+      .filter(l => l.startsWith('http'))
+  )];
+}
+
+function updateLinkCount() {
+  const urls = parseUrls();
+  linkCount.innerHTML = '已识别 <strong>' + urls.length + '</strong> 条链接';
+  extractBtn.disabled = urls.length === 0;
+}
+
+urlInput.addEventListener('input', updateLinkCount);
+updateLinkCount();
+
+clearBtn.addEventListener('click', () => {
+  urlInput.value = '';
+  resultsContainer.innerHTML = '';
+  emptyState.style.display = '';
+  statsList.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:32px 0;font-size:0.85rem;">暂无数据</div>';
+  statsCount.textContent = '0 个标签';
+  statsActions.style.display = 'none';
+  allTags = [];
+  lastResults = [];
+  lastStats = [];
+  updateLinkCount();
+});
+
+function showToast(msg) {
+  toast.textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(toast._timeout);
+  toast._timeout = setTimeout(() => toast.classList.remove('show'), 2000);
+}
+
+extractBtn.addEventListener('click', async () => {
+  const urls = parseUrls();
+  if (urls.length === 0) return;
+
+  extractBtn.disabled = true;
+  extractBtn.innerHTML = '<span class="spinner"></span> 提取中...';
+  progressBar.classList.add('active');
+  progressText.classList.add('active');
+  progressFill.style.width = '0%';
+  progressText.textContent = '准备中...';
+  resultsContainer.innerHTML = '';
+  emptyState.style.display = 'none';
+  allTags = [];
+
+  try {
+    const resp = await fetch('/api/extract', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ urls })
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json();
+      throw new Error(err.error || '请求失败');
+    }
+
+    const data = await resp.json();
+    const { results, stats } = data;
+    allTags = stats.map(s => s.tag);
+    lastResults = results;
+    lastStats = stats;
+
+    results.forEach((r, i) => {
+      setTimeout(() => {
+        progressFill.style.width = ((i + 1) / results.length * 100) + '%';
+        progressText.textContent = '已完成 ' + (i + 1) + ' / ' + results.length;
+      }, i * 50);
+    });
+
+    resultsContainer.innerHTML = results.map(r => {
+      const cls = r.status === 'success' ? 'success' : 'failed';
+      const statusLabel = r.status === 'success' ? '成功' : '失败';
+      const statusCls = r.status === 'success' ? 'ok' : 'fail';
+      const tagHtml = r.tags.length > 0
+        ? '<div class="tag-list">' + r.tags.map(t => '<span class="tag-pill">#' + escapeHtml(t) + '</span>').join('') + '</div>'
+        : '';
+      const errorHtml = r.status === 'failed' ? '<div class="card-error">' + escapeHtml(r.error || '未知错误') + '</div>' : '';
+
+      return '<div class="result-card ' + cls + '" style="animation-delay:' + (r.index * 0.03) + 's">'
+        + '<div class="card-header">'
+        + '<span class="card-index">#' + (r.index + 1) + '</span>'
+        + '<span class="card-status ' + statusCls + '">' + statusLabel + '</span>'
+        + '</div>'
+        + '<div class="card-id">' + escapeHtml(r.shortId) + '</div>'
+        + (r.title ? '<div class="card-title">' + escapeHtml(r.title) + '</div>' : '')
+        + errorHtml
+        + tagHtml
+        + '</div>';
+    }).join('');
+
+    renderStats(stats);
+
+    setTimeout(() => {
+      progressBar.classList.remove('active');
+      progressText.classList.remove('active');
+      extractBtn.disabled = false;
+      extractBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg> 开始提取';
+
+      const successCount = results.filter(r => r.status === 'success').length;
+      showToast('完成：' + successCount + '/' + results.length + ' 条成功，共 ' + allTags.length + ' 个标签');
+    }, 300);
+
+  } catch (err) {
+    progressBar.classList.remove('active');
+    progressText.classList.remove('active');
+    extractBtn.disabled = false;
+    extractBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg> 开始提取';
+    showToast('错误: ' + err.message);
+    updateLinkCount();
+  }
+});
+
+function renderStats(stats) {
+  if (!stats || stats.length === 0) {
+    statsList.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:32px 0;font-size:0.85rem;">暂无数据</div>';
+    statsCount.textContent = '0 个标签';
+    statsActions.style.display = 'none';
+    return;
+  }
+
+  const maxCount = stats[0].count;
+  statsCount.textContent = stats.length + ' 个标签';
+  statsActions.style.display = '';
+
+  statsList.innerHTML = stats.map(s => {
+    const pct = Math.round(s.count / maxCount * 100);
+    return '<div class="stat-item">'
+      + '<div style="flex:1;min-width:0;">'
+      + '<div style="display:flex;justify-content:space-between;align-items:center;">'
+      + '<span class="stat-tag">#' + escapeHtml(s.tag) + '</span>'
+      + '<span class="stat-count">' + s.count + '</span>'
+      + '</div>'
+      + '<div class="stat-bar"><div class="fill" style="width:' + pct + '%"></div></div>'
+      + '</div>'
+      + '</div>';
+  }).join('');
+}
+
+copyAllBtn.addEventListener('click', () => {
+  if (allTags.length === 0) return;
+  const text = allTags.map(t => '#' + t).join(' ');
+  navigator.clipboard.writeText(text).then(() => {
+    showToast('已复制 ' + allTags.length + ' 个标签到剪贴板');
+  }).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    showToast('已复制 ' + allTags.length + ' 个标签到剪贴板');
+  });
+});
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+exportBtn.addEventListener('click', async () => {
+  if (lastResults.length === 0) return;
+  exportBtn.disabled = true;
+  exportBtn.innerHTML = '<span class="spinner"></span> 生成中...';
+  try {
+    const resp = await fetch('/api/export', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ results: lastResults, stats: lastStats })
+    });
+    if (!resp.ok) throw new Error('导出失败');
+    const blob = await resp.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'xiaohongshu_tags.xlsx';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('Excel 导出成功');
+  } catch (err) {
+    showToast('导出失败: ' + err.message);
+  }
+  exportBtn.disabled = false;
+  exportBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> 导出 Excel';
+});
+</script>
+</body>
+</html>
